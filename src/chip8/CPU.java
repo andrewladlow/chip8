@@ -51,22 +51,93 @@ public class CPU {
         System.out.println("Opcode upper: " + memory[pc]);
         System.out.println("Opcode lower: " + memory[pc+1]);
         // combine memory bytes pc and pc+1 to form 2 byte opcode
-        int opcode = memory[pc] << 8 | memory[pc++];
+        int opcode = memory[pc] << 8 | memory[pc+1];
         return opcode;
     }
     
     private void decode(int opcode) {
         System.out.println("Opcode: " + opcode);
         switch (opcode & 0xF000) {
+        case 0x0000:
+            switch (opcode & 0x000F) {
+            case 0x0000:
+                
+            case 0x000E:
+                
+            }
+            break;
+        case 0x1000:
+            
+        case 0x2000:
+            
+        case 0x3000:
+            
+        case 0x4000:
+            
+        case 0x5000:
+            
+        case 0x6000:
+            
+        case 0x7000:
+            
+        case 0x8000:
+            switch (opcode & 0x000F) {
+            case 0x0000:
+                
+            case 0x0001:
+                
+            case 0x0002:
+                
+            case 0x0003:
+                
+            case 0x0004:
+                
+            case 0x0005:
+                
+            case 0x0006:
+                
+            case 0x0007:
+                
+            case 0x000E:
+                     
+            }
+            break;
+        case 0x9000:
+            
         case 0xA000:
             setIndex();
             break;
+        case 0xB000:
+        case 0xC000:
+        case 0xD000:
+        case 0xE000:
+            switch (opcode & 0x000F) {
+            case 0x000E:
+            case 0x0001:
+            }
+            break;
+        case 0xF000:
+            switch (opcode & 0x00FF) {
+            case 0x0007:
+            case 0x000A:
+            case 0x0015:
+            case 0x0018:
+            case 0x001E:
+            case 0x0029:
+            case 0x0033:
+            case 0x0055:
+            case 0x0065:
+            }
+            break;        
         default:
             System.out.println("Unknown opcode: " + opcode);
         }
     }
     
     // opcode execution
+    
+    
+    
     private void setIndex() {
         index = opcode & 0x0FFF;
         pc += 2; 
