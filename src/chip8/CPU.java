@@ -61,9 +61,9 @@ public class CPU {
         case 0x0000:
             switch (opcode & 0x000F) {
             case 0x0000:
-                
+                clear();
             case 0x000E:
-                
+                returnSub();
             }
             break;
         case 0x1000:
@@ -136,11 +136,133 @@ public class CPU {
     
     // opcode execution
     
+    private void clear() {
+        
+    }
     
+    private void returnSub() {
+        
+    }
+    
+    private void jump() {
+        
+    }
+    
+    private void call() {
+        
+    }
+    
+    private void skipIfEqual() {
+        
+    }
+    
+    private void skipIfNotEqual() {
+        
+    }
+    
+    private void set() {
+        
+    }
+    
+    private void add() {
+        
+    }
+    
+    private void setVal() {
+        
+    }
+    
+    private void or() {
+        
+    }
+    
+    private void and() {
+        
+    }
+    
+    private void xor() {
+        
+    }
+    
+    private void addCarry() {
+        
+    }
+    
+    private void subBorrow() {
+        
+    }
+    
+    private void shiftRight() {
+        
+    }
+    
+    private void setSubBorrow() {
+        
+    }
+    
+    private void shiftLeft() {
+        
+    }
+    
+    private void skip() {
+        
+    }
+    
+    private void setAddress() {
+        
+    }
+    
+    private void jumpAddress() {
+        
+    }
     
     private void setIndex() {
         index = opcode & 0x0FFF;
         pc += 2; 
+    }
+    
+    private void bitwiseAnd() {
+        
+    }
+    
+    private void dxyn() {
+        
+    }
+    
+    private void skipPressed() {
+        
+    }
+    
+    private void skipNotPressed() {
+        
+    }
+    
+    private void setDelay() {
+        
+    }
+    
+    private void setSound() {
+        
+    }
+    
+    private void addToIndex() {
+        
+    }
+    
+    private void setSpriteIndex() {
+        
+    }
+    
+    private void storeBCD() {
+        
+    }
+    
+    private void MemStore() {
+        
+    }
+    
+    private void MemFill() {
+        
     }
     
     private void updateTimers() {
