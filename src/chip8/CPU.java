@@ -1,15 +1,11 @@
 package chip8;
 
-import java.io.FileInputStream;
-import java.io.ObjectInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 
-public class CPU {
+public class CPU implements Runnable {
     // unsigned   
     private int opcode; // 2 bytes
     private int[] memory = new int[4096];
@@ -61,17 +57,55 @@ public class CPU {
     
     private boolean drawFlag = false;
     
-    public void init() {
-        // set program start, clear memory
-        int j = 0;
-        for (int i = 0x050; i < 0x0A0; i++) {
-            memory[i] = fontSet[j];
-            j++;
+    private Thread CPUThread;
+    
+    private boolean running = false;
+    
+    private Object lock;
+    
+    public CPU(Object lock) {
+        this.lock = lock;
+    }
+    
+    public void startThread() {
+        if (CPUThread == null) {
+            running = true;
+            CPUThread = new Thread(this);
+            CPUThread.start();
         }
+    }
+
+    public void init() {
+        // clear memory
+        for (int i = 0; i < 4096; i++) {
+            memory[i] = 0;
+        }
+        // clear stack
+        for (int i = 0; i < 16; i++) {
+            stack[i] = 0;
+        }
+        // load fonts
+        for (int i = 0; i < 80; i++) {
+            memory[i] = fontSet[i];
+        }
+               
         pc = 0x200;
         opcode = 0;
         index = 0;
         sp = 0;
+        
+        // refresh screen
+        drawFlag = true;
+
+    }
+    
+    public void run() {
+        while (running) {
+            synchronized(lock) {
+                cycle();
+                lock.notifyAll();
+            }
+        }
     }
     
     public void cycle() {
@@ -81,15 +115,15 @@ public class CPU {
     }
     
     private int fetch(int pc) {
-        System.out.println("Opcode upper: " + Integer.toHexString(memory[pc] & 0xFF));
-        System.out.println("Opcode lower: " + Integer.toHexString(memory[pc+1] & 0xFF));
+        //System.out.println("Opcode upper: " + Integer.toHexString(memory[pc] & 0xFF));
+        //System.out.println("Opcode lower: " + Integer.toHexString(memory[pc+1] & 0xFF));
         // combine memory bytes pc and pc+1 to form 2 byte opcode
         int opcode = (memory[pc] & 0xFF) << 8 | (memory[pc+1] & 0xFF);
         return opcode;
     }
     
     private void decode(int opcode) {
-        System.out.println("Opcode: " + Integer.toHexString(opcode));
+        //System.out.println("Opcode: " + Integer.toHexString(opcode));
         switch (opcode & 0xF000) {
         case 0x0000:
             switch (opcode & 0x000F) {
@@ -218,8 +252,8 @@ public class CPU {
     
     // 0x00E0 - clear screen
     private void clear() {
-        for (int yLine = 0; yLine < 64; yLine++) {
-            for (int xLine = 0; xLine < 32; xLine++) {
+        for (int xLine = 0; xLine < 64; xLine++) {
+            for (int yLine = 0; yLine < 32; yLine++) {
                 gfx[xLine][yLine] = 0;
             }
         }
@@ -229,13 +263,14 @@ public class CPU {
     // 0x00EE - return from subroutine
     private void subReturn() {
         sp--;
-        pc = stack[sp] + 2;
+        pc = stack[sp];
+        pc += 2;
     }
     
     // 0x1NNN - jump to address NNN
     private void jump() {
-        pc = (opcode & 0x0FFF) & 0xFF;
-        System.out.println("New PC: " + pc);
+        pc = opcode & 0x0FFF;
+        //System.out.println("New PC: " + pc);
     }
     
     // 0x2NNN - call subroutine at address NNN
@@ -275,7 +310,7 @@ public class CPU {
     // 0x6XNN - set VX to NN
     private void set() {
         V[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
-        System.out.println("Set");
+        //System.out.println("Set");
         pc += 2;
     }
     
@@ -320,7 +355,7 @@ public class CPU {
             V[0xF] = 0;
         }
         // mask with lower byte - necessary?
-        V[X] += V[Y] & 0xFF;
+        V[X] += V[Y];
         pc += 2;
     }
     
@@ -392,9 +427,8 @@ public class CPU {
     // 0xCXNN - VX = rand & NN
     private void RandAnd() {
         Random rand = new Random();
-        int i = rand.nextInt();
-        // again bitmask?
-        V[(opcode & 0x0F00) >> 8] = (i & (opcode & 0x00FF)) & 0xFF; 
+        int i = rand.nextInt() % 0xFF;
+        V[(opcode & 0x0F00) >> 8] = i & (opcode & 0x00FF); 
         pc += 2;
     }
     
@@ -404,16 +438,19 @@ public class CPU {
         int y = V[(opcode & 0x00F0) >> 4];
         int height = opcode & 0x000F;
         int pixel;
-        
         V[0xF] = 0;
         for (int yLine = 0; yLine < height; yLine++) {
             pixel = memory[index + yLine];
             for (int xLine = 0; xLine < 8; xLine++) {
+                // check each pixel in the row
                 if ((pixel & (0x80 >> xLine)) != 0) {
                     // if pixel already exists, set carry (collision)
-                    System.out.println("X : " + x+xLine);
-                    System.out.println("Y : " + y+yLine);
+                    //System.out.println("X1 : " + x);
+                    //System.out.println("X2 : " + xLine);
+                    //System.out.println("Y1 : " + y);
+                    //System.out.println("Y2 : " + yLine);
                     if (gfx[x+xLine][y+yLine] == 1) {
+                        //System.out.println("CARRY");
                         V[0xF] = 1;
                     }
                     // draw via xor
@@ -449,9 +486,21 @@ public class CPU {
         pc += 2;
     }
     
-    // 0xFX0A - VX = key press
+    // 0xFX0A - Check for key press, store in VX
     private void keyWait() {
-        //TODO
+        int X = (opcode & 0x0F00);
+        boolean keyPressed = false;
+        
+        for (int i = 0; i < 16; i++) {
+            if (key[i] == 1) {
+                V[X] = key[i];
+                keyPressed = true;
+            }
+        }
+        
+        if (keyPressed) {
+            pc += 2;
+        }
     }
     
     // 0xFX15 - delay timer = VX
@@ -468,13 +517,22 @@ public class CPU {
     
     // 0xFX1E - index += VX
     private void addToIndex() {
+        int X = (opcode & 0x0F00) >> 8;
+        // V[F] set to 1 if I+VX overflows
+        if (index + V[X] > 0xFFF) {
+            V[0xF] = 1;
+        } else {
+            V[0xF] = 0;
+        }
         index += V[(opcode & 0x0F00) >> 8];
+        System.out.println("Index: " + index);
         pc += 2;
     }
     
-    // 0xFX29 - index = fontSet[VX]
+    // 0xFX29 - index = sprite loc. for char in VX
     private void setSpriteIndex() {
-        index = fontSet[V[(opcode & 0x0F00) >> 8]];
+        index = V[(opcode & 0x0F00) >> 8] * 5;
+        System.out.println("SPRITE INDEX: " + index);
         pc += 2;
     }
     
@@ -489,20 +547,22 @@ public class CPU {
     // 0xFX55 - store V0 -> VX in memory from point index
     private void memStore() {
         int X = (opcode & 0x0F00) >> 8;
-        for (int i = 0x00; i <= X; i++) {
-            memory[index] = V[i];
-            index++;
+        for (int i = 0; i <= X; i++) {
+            memory[index + i] = V[i];
         }
+        //index += X + 1;
         pc += 2;
     }
     
     // 0xFX65 - fill V0 -> VX with values from memory point index
     private void memFill() {
         int X = (opcode & 0x0F00) >> 8;
-        for (int i = 0x00; i <= X; i++) {
-            V[i] = memory[index];
-            index++;
+        System.out.println("X: " + X);
+        System.out.println("Index: " + index);
+        for (int i = 0; i <= X; i++) {
+            V[i] = memory[index + i];
         }
+        //index += X + 1;
         pc += 2;
     }
     
@@ -541,6 +601,10 @@ public class CPU {
 
     public int[][] getGfx() {
         return gfx;
+    }
+    
+    public char[] getKey() {
+        return key;
     }
     
 }

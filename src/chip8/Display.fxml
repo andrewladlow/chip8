@@ -5,9 +5,9 @@
 <?import java.lang.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane fx:id="borderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane fx:id="borderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="chip8.DisplayController">
    <center>
-      <Canvas id="canvas" fx:id="canvas" height="256.0" width="512.0" BorderPane.alignment="CENTER" />
+      <Canvas id="canvas" fx:id="canvas" height="256.0" onKeyPressed="#handleKeyPressed" onKeyReleased="#handleKeyReleased" width="512.0" BorderPane.alignment="CENTER" />
    </center>
    <top>
       <MenuBar fx:id="menuBar" BorderPane.alignment="CENTER">

@@ -15,23 +15,14 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 public class Display extends Application {
-    private DisplayController displayController;
-       
-
+    
     public void start(Stage stage) throws Exception {    
-        FXMLLoader loader = new FXMLLoader();
-        loader.setLocation(getClass().getResource("Root.fxml"));
-        
-        displayController = new DisplayController();
-        loader.setController(displayController);
-        
-        BorderPane root = (BorderPane) loader.load();
-        displayController.setup();
+        BorderPane pane = FXMLLoader.load(getClass().getResource("Display.fxml"));
 
-        Scene scene = new Scene(root);
-        stage.setTitle("CHIP8");
+        Scene scene = new Scene(pane);
+        stage.setTitle("CHIP-8");
         stage.setScene(scene);
-        stage.show();  
+        stage.show();
     }
     
     public static void main(String[] args) {
