@@ -29,12 +29,14 @@ public class CPU implements Runnable {
     // stack pointer
     private int sp;
     // hex input keypad
-    private char[] key = new char[] {
-        '1', '2', '3', '4',
-        'Q', 'W', 'E', 'R',
-        'A', 'S', 'D', 'F',
-        'Z', 'X', 'C', 'V',
+    private int[] key = new int[] {
+        '1','2','3','4',
+        'Q','W','E','R',
+        'A','B','D','F',
+        'Z','X','C','V',
     };
+        
+    
 
     private char fontSet[] = new char[] {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -61,10 +63,8 @@ public class CPU implements Runnable {
     
     private boolean running = false;
     
-    private Object lock;
     
-    public CPU(Object lock) {
-        this.lock = lock;
+    public CPU() {
     }
     
     public void startThread() {
@@ -80,9 +80,11 @@ public class CPU implements Runnable {
         for (int i = 0; i < 4096; i++) {
             memory[i] = 0;
         }
-        // clear stack
+        // clear stack, keys, and registers
         for (int i = 0; i < 16; i++) {
             stack[i] = 0;
+            key[i] = 0;
+            V[i] = 0;
         }
         // load fonts
         for (int i = 0; i < 80; i++) {
@@ -93,6 +95,8 @@ public class CPU implements Runnable {
         opcode = 0;
         index = 0;
         sp = 0;
+        delayTimer = 0;
+        soundTimer = 0;
         
         // refresh screen
         drawFlag = true;
@@ -101,10 +105,7 @@ public class CPU implements Runnable {
     
     public void run() {
         while (running) {
-            synchronized(lock) {
-                cycle();
-                lock.notifyAll();
-            }
+            cycle();
         }
     }
     
@@ -271,6 +272,7 @@ public class CPU implements Runnable {
     private void jump() {
         pc = opcode & 0x0FFF;
         //System.out.println("New PC: " + pc);
+        drawFlag = true;
     }
     
     // 0x2NNN - call subroutine at address NNN
@@ -416,7 +418,7 @@ public class CPU implements Runnable {
     private void setIndex() {
         index = (opcode & 0x0FFF);
         pc += 2;
-        System.out.println("Index: " + index);
+        //System.out.println("Index: " + index);
     }
     
     // 0xBNNN - jump to NNN + V0
@@ -441,29 +443,31 @@ public class CPU implements Runnable {
         V[0xF] = 0;
         for (int yLine = 0; yLine < height; yLine++) {
             pixel = memory[index + yLine];
+
             for (int xLine = 0; xLine < 8; xLine++) {
-                // check each pixel in the row
+                // check each bit (pixel) in the 1 byte row
                 if ((pixel & (0x80 >> xLine)) != 0) {
+
+                    // wrap pixels if they're drawn off screen
+                    int xCoord = (x+xLine) % 64;
+                    int yCoord = (y+yLine) % 32;
+
                     // if pixel already exists, set carry (collision)
-                    //System.out.println("X1 : " + x);
-                    //System.out.println("X2 : " + xLine);
-                    //System.out.println("Y1 : " + y);
-                    //System.out.println("Y2 : " + yLine);
-                    if (gfx[x+xLine][y+yLine] == 1) {
-                        //System.out.println("CARRY");
+                    if (gfx[xCoord][yCoord] == 1) {
                         V[0xF] = 1;
                     }
                     // draw via xor
-                    gfx[x+xLine][y+yLine] ^= 1;
+                    gfx[xCoord][yCoord] ^= 1;
                 }
             }
         }       
-        drawFlag = true;
+        //drawFlag = true;
         pc += 2;
     }
     
     // 0xEX9E - skip ins. if key in VX is pressed
     private void skipKeyPressed() {
+        System.out.println("TEST: " + key[V[(opcode & 0x0F00) >> 8]]);
         if (key[V[(opcode & 0x0F00) >> 8]] != 0) {
             pc += 4;
         } else {
@@ -490,10 +494,13 @@ public class CPU implements Runnable {
     private void keyWait() {
         int X = (opcode & 0x0F00);
         boolean keyPressed = false;
-        
+           
         for (int i = 0; i < 16; i++) {
             if (key[i] == 1) {
-                V[X] = key[i];
+                //V[X] = key[i];
+                V[X] = i;
+                System.out.println("KEY1: " + key[i]);
+                System.out.println("KEY2: " + V[X]);
                 keyPressed = true;
             }
         }
@@ -538,9 +545,10 @@ public class CPU implements Runnable {
     
     // 0xFX33 - store BCD of VX in M[i]->M[i+2]
     private void storeBCD() {
-        memory[index] = V[(opcode & 0x0F00) >> 8] / 100;
-        memory[index+1] = (V[(opcode & 0x0F00) >> 8] / 100) % 10;
-        memory[index+2] = (V[(opcode & 0x0F00) >> 8] % 100) % 10;
+        int X = (opcode & 0x0F00) >> 8;
+        memory[index] = V[X] / 100;
+        memory[index+1] = (V[X] % 100) / 10;
+        memory[index+2] = (V[X] % 100) % 10;
         pc += 2;
     }
     
@@ -603,8 +611,8 @@ public class CPU implements Runnable {
         return gfx;
     }
     
-    public char[] getKey() {
-        return key;
+    public void setKey(int index, int val) {
+        key[index] = val;
     }
     
 }
