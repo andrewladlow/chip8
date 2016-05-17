@@ -81,10 +81,10 @@ public class CPU {
     }
     
     private int fetch(int pc) {
-        System.out.println("Opcode upper: " + Integer.toHexString(memory[pc] & 0x00FF));
-        System.out.println("Opcode lower: " + Integer.toHexString(memory[pc+1] & 0x00FF));
+        System.out.println("Opcode upper: " + Integer.toHexString(memory[pc] & 0xFF));
+        System.out.println("Opcode lower: " + Integer.toHexString(memory[pc+1] & 0xFF));
         // combine memory bytes pc and pc+1 to form 2 byte opcode
-        int opcode = (memory[pc] & 0x00FF) << 8 | (memory[pc+1] & 0x00FF);
+        int opcode = (memory[pc] & 0xFF) << 8 | (memory[pc+1] & 0xFF);
         return opcode;
     }
     
@@ -320,7 +320,7 @@ public class CPU {
             V[0xF] = 0;
         }
         // mask with lower byte - necessary?
-        V[X] += V[Y] & 0x00FF;
+        V[X] += V[Y] & 0xFF;
         pc += 2;
     }
     
@@ -335,7 +335,7 @@ public class CPU {
             V[0xF] = 1;
         }
         // again mask with lower byte
-        V[X] -= V[Y] & 0x00FF;
+        V[X] -= V[Y] & 0xFF;
         pc += 2;
     }
     
@@ -379,8 +379,9 @@ public class CPU {
       
     // 0xANNN - set index to address NNN
     private void setIndex() {
-        index = opcode & 0x0FFF;
-        pc += 2; 
+        index = (opcode & 0x0FFF);
+        pc += 2;
+        System.out.println("Index: " + index);
     }
     
     // 0xBNNN - jump to NNN + V0
@@ -393,7 +394,7 @@ public class CPU {
         Random rand = new Random();
         int i = rand.nextInt();
         // again bitmask?
-        V[(opcode & 0x0F00) >> 8] = (i & (opcode & 0x00FF)) & 0x00FF; 
+        V[(opcode & 0x0F00) >> 8] = (i & (opcode & 0x00FF)) & 0xFF; 
         pc += 2;
     }
     
@@ -410,6 +411,8 @@ public class CPU {
             for (int xLine = 0; xLine < 8; xLine++) {
                 if ((pixel & (0x80 >> xLine)) != 0) {
                     // if pixel already exists, set carry (collision)
+                    System.out.println("X : " + x+xLine);
+                    System.out.println("Y : " + y+yLine);
                     if (gfx[x+xLine][y+yLine] == 1) {
                         V[0xF] = 1;
                     }
@@ -534,6 +537,10 @@ public class CPU {
 
     public void setDrawFlag(boolean drawFlag) {
         this.drawFlag = drawFlag;
+    }
+
+    public int[][] getGfx() {
+        return gfx;
     }
     
 }
