@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.canvas.Canvas;
@@ -31,8 +32,18 @@ public class DisplayController implements Initializable {
     private PixelWriter pw;
     private CPU chip8CPU;
     private ExecutorService executor = Executors.newFixedThreadPool(2); 
-    private int modifier = 6;  
+    private int modifier = 8;  
     private boolean running = false;
+    
+    @FXML
+    private void handleRestartAction(ActionEvent ae) {
+        System.out.println("Clicked restart");
+    }
+    
+    @FXML
+    private void handleAboutAction(ActionEvent ae) {
+        System.out.println("Clicked about");
+    }   
     
     @FXML
     private void handleKeyPressed(KeyEvent ke) {
@@ -147,7 +158,8 @@ public class DisplayController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         
         canvas.setFocusTraversable(true);
-        borderPane.setStyle("-fx-background-color: black");      
+        borderPane.setStyle("-fx-background-color: black");
+        borderPane.setCenter(canvas);
         gc = canvas.getGraphicsContext2D();
         gc.setLineWidth(1.0);
         pw = canvas.getGraphicsContext2D().getPixelWriter();
@@ -164,7 +176,7 @@ public class DisplayController implements Initializable {
             while (running) {
                 chip8CPU.cycle();
                 try {
-                    Thread.sleep(16);
+                    Thread.sleep(4);
                 } catch (Exception e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();

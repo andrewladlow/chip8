@@ -32,13 +32,16 @@ public class CPU implements Runnable {
     private int[] key = new int[] {
         '1','2','3','4',
         'Q','W','E','R',
-        'A','B','D','F',
+        'A','S','D','F',
         'Z','X','C','V',
     };
+    
+    private long timeBegin = Long.MIN_VALUE;
+    private long timeEnd = Long.MAX_VALUE;
         
     
 
-    private char fontSet[] = new char[] {
+    private int fontSet[] = new int[] {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -90,7 +93,8 @@ public class CPU implements Runnable {
         for (int i = 0; i < 80; i++) {
             memory[i] = fontSet[i];
         }
-               
+        
+        // reset vars
         pc = 0x200;
         opcode = 0;
         index = 0;
@@ -112,7 +116,12 @@ public class CPU implements Runnable {
     public void cycle() {
         opcode = fetch(pc);
         decode(opcode);
-        updateTimers();
+        timeBegin = System.nanoTime();
+        // update timers every 16ms ~60Hz
+        if ((timeEnd - timeBegin) > (16 / 1e3)) {
+            updateTimers();
+        }
+        timeEnd = System.nanoTime();
     }
     
     private int fetch(int pc) {
@@ -311,14 +320,22 @@ public class CPU implements Runnable {
     
     // 0x6XNN - set VX to NN
     private void set() {
-        V[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
+        V[(opcode & 0x0F00) >> 8] = (opcode & 0x00FF);
         //System.out.println("Set");
         pc += 2;
     }
     
     // 0x7XNN - add NN to VX
     private void add() {
-        V[(opcode & 0x0F00) >> 8] += opcode & 0x00FF;
+        int X = (opcode & 0x0F00) >> 8;
+        int NN = (opcode & 0x00FF);
+        int result = V[X] + NN;
+        // resolve overflow (V regs are only 8bit)
+        if (result >= 256) {
+            V[X] = result - 256;
+        } else {
+            V[X] += NN;
+        }
         pc += 2;
     }
     
@@ -362,6 +379,7 @@ public class CPU implements Runnable {
     }
     
     // 0x8XY5 - VX -= VY, VF = 0 if < 0, else VF = 1
+    // TODO possible underflow
     private void subBorrow() {
         int X = (opcode & 0x0F00) >> 8;
         int Y = (opcode & 0x00F0) >> 4;
@@ -429,7 +447,7 @@ public class CPU implements Runnable {
     // 0xCXNN - VX = rand & NN
     private void RandAnd() {
         Random rand = new Random();
-        int i = rand.nextInt() % 0xFF;
+        int i = rand.nextInt(256);
         V[(opcode & 0x0F00) >> 8] = i & (opcode & 0x00FF); 
         pc += 2;
     }
@@ -439,10 +457,9 @@ public class CPU implements Runnable {
         int x = V[(opcode & 0x0F00) >> 8];
         int y = V[(opcode & 0x00F0) >> 4];
         int height = opcode & 0x000F;
-        int pixel;
         V[0xF] = 0;
         for (int yLine = 0; yLine < height; yLine++) {
-            pixel = memory[index + yLine];
+            int pixel = memory[index + yLine];
 
             for (int xLine = 0; xLine < 8; xLine++) {
                 // check each bit (pixel) in the 1 byte row
@@ -451,15 +468,20 @@ public class CPU implements Runnable {
                     // wrap pixels if they're drawn off screen
                     int xCoord = (x+xLine) % 64;
                     int yCoord = (y+yLine) % 32;
+                    //int xCoord = x+xLine;
+                    //int yCoord = y+yLine;
 
                     // if pixel already exists, set carry (collision)
-                    if (gfx[xCoord][yCoord] == 1) {
-                        V[0xF] = 1;
-                    }
-                    // draw via xor
-                    gfx[xCoord][yCoord] ^= 1;
+                    //if (xCoord < 64 && yCoord < 32) {
+                        if (gfx[xCoord][yCoord] == 1) {
+                            V[0xF] = 1;
+                        }
+                        // draw via xor
+                        gfx[xCoord][yCoord] ^= 1;
+                    //}
                 }
             }
+            
         }       
         //drawFlag = true;
         pc += 2;
@@ -467,8 +489,8 @@ public class CPU implements Runnable {
     
     // 0xEX9E - skip ins. if key in VX is pressed
     private void skipKeyPressed() {
-        System.out.println("TEST: " + key[V[(opcode & 0x0F00) >> 8]]);
-        if (key[V[(opcode & 0x0F00) >> 8]] != 0) {
+        //System.out.println("TEST: " + key[V[(opcode & 0x0F00) >> 8]]);
+        if (key[V[(opcode & 0x0F00) >> 8]] == 1) {
             pc += 4;
         } else {
             pc += 2;
@@ -477,7 +499,7 @@ public class CPU implements Runnable {
     
     // 0xEXA1 - skip ins. if key in VX is not pressed
     private void skipKeyNotPressed() {
-        if (key[V[(opcode & 0x0F00) >> 8]] != 1) {
+        if (key[V[(opcode & 0x0F00) >> 8]] == 0) {
             pc += 4;
         } else {
             pc += 2;
@@ -532,7 +554,7 @@ public class CPU implements Runnable {
             V[0xF] = 0;
         }
         index += V[(opcode & 0x0F00) >> 8];
-        System.out.println("Index: " + index);
+        //System.out.println("Index: " + index);
         pc += 2;
     }
     
@@ -546,9 +568,13 @@ public class CPU implements Runnable {
     // 0xFX33 - store BCD of VX in M[i]->M[i+2]
     private void storeBCD() {
         int X = (opcode & 0x0F00) >> 8;
+        System.out.println("TEST: " + V[X]);
         memory[index] = V[X] / 100;
         memory[index+1] = (V[X] % 100) / 10;
         memory[index+2] = (V[X] % 100) % 10;
+        System.out.println(memory[index]);
+        System.out.println(memory[index+1]);
+        System.out.println(memory[index+2]);
         pc += 2;
     }
     
@@ -565,8 +591,8 @@ public class CPU implements Runnable {
     // 0xFX65 - fill V0 -> VX with values from memory point index
     private void memFill() {
         int X = (opcode & 0x0F00) >> 8;
-        System.out.println("X: " + X);
-        System.out.println("Index: " + index);
+        //System.out.println("X: " + X);
+        //System.out.println("Index: " + index);
         for (int i = 0; i <= X; i++) {
             V[i] = memory[index + i];
         }
