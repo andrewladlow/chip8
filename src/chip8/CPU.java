@@ -29,12 +29,7 @@ public class CPU implements Runnable {
     // stack pointer
     private int sp;
     // hex input keypad
-    private int[] key = new int[] {
-        '1','2','3','4',
-        'Q','W','E','R',
-        'A','S','D','F',
-        'Z','X','C','V',
-    };
+    private int[] key = new int[16];
     
     private long timeBegin = Long.MIN_VALUE;
     private long timeEnd = Long.MAX_VALUE;
@@ -132,7 +127,7 @@ public class CPU implements Runnable {
         return opcode;
     }
     
-    private void decode(int opcode) {
+    public void decode(int opcode) {
         //System.out.println("Opcode: " + Integer.toHexString(opcode));
         switch (opcode & 0xF000) {
         case 0x0000:
@@ -261,7 +256,7 @@ public class CPU implements Runnable {
     // opcode execution
     
     // 0x00E0 - clear screen
-    private void clear() {
+    public void clear() {
         for (int xLine = 0; xLine < 64; xLine++) {
             for (int yLine = 0; yLine < 32; yLine++) {
                 gfx[xLine][yLine] = 0;
@@ -271,28 +266,28 @@ public class CPU implements Runnable {
     }
     
     // 0x00EE - return from subroutine
-    private void subReturn() {
+    public void subReturn() {
         sp--;
         pc = stack[sp];
         pc += 2;
     }
     
     // 0x1NNN - jump to address NNN
-    private void jump() {
+    public void jump() {
         pc = opcode & 0x0FFF;
         //System.out.println("New PC: " + pc);
         drawFlag = true;
     }
     
     // 0x2NNN - call subroutine at address NNN
-    private void callSub() {
+    public void callSub() {
         stack[sp] = pc;
         sp++;
         pc = opcode & 0x0FFF;
     }
     
     // 0x3XNN - skip ins. if VX == NN
-    private void skipIfEqualN() {
+    public void skipIfEqualN() {
         if (V[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF)) {
             pc += 4;
         } else {
@@ -301,7 +296,7 @@ public class CPU implements Runnable {
     }
     
     // 0x4XNN - skip ins. if VX != NN
-    private void skipIfNotEqualN() {
+    public void skipIfNotEqualN() {
         if (V[(opcode & 0x0F00) >> 8] != (opcode & 0x00FF)) {
             pc += 4;
         } else {
@@ -310,7 +305,7 @@ public class CPU implements Runnable {
     }
     
     // 0x5XY0 - skip ins. if VX == VY
-    private void skipIfEqualV() {
+    public void skipIfEqualV() {
         if (V[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF)) {
             pc += 4;
         } else {
@@ -319,14 +314,14 @@ public class CPU implements Runnable {
     }
     
     // 0x6XNN - set VX to NN
-    private void set() {
+    public void set() {
         V[(opcode & 0x0F00) >> 8] = (opcode & 0x00FF);
         //System.out.println("Set");
         pc += 2;
     }
     
     // 0x7XNN - add NN to VX
-    private void add() {
+    public void add() {
         int X = (opcode & 0x0F00) >> 8;
         int NN = (opcode & 0x00FF);
         int result = V[X] + NN;
@@ -340,62 +335,63 @@ public class CPU implements Runnable {
     }
     
     // 0x8XY0 - set VX to VY
-    private void setVal() {
+    public void setVal() {
         V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4];
         pc += 2;
     }
     
     // 0x8XY1 - VX = VX OR VY
-    private void or() {
+    public void or() {
         V[(opcode & 0x0F00) >> 8] |= V[(opcode & 0x00F0) >> 4];
         pc += 2;
     }
     
     // 0x8XY2 - VX = VX AND VY
-    private void and() {
+    public void and() {
         V[(opcode & 0x0F00) >> 8] &= V[(opcode & 0x00F0) >> 4];
         pc += 2;
     }
     
     // 0x8XY3 - VX = VX XOR VY
-    private void xor() {
+    public void xor() {
         V[(opcode & 0x0F00) >> 8] ^= V[(opcode & 0x00F0) >> 4];
         pc += 2;
     }
     
     // 0x8XY4 - VX += VY, VF=1 if > 255, else VF=0
-    private void addCarry() {
-        int X = (opcode & 0x0F00) >> 8;
-        int Y = (opcode & 0x00F0) >> 4;   
-        // if V[X] += V[Y] > 255, set carry
-        if (V[X] > (0xFF - V[Y])) {
-            V[0xF] = 1;
-        } else {
-            V[0xF] = 0;
-        }
-        // mask with lower byte - necessary?
-        V[X] += V[Y];
-        pc += 2;
-    }
-    
-    // 0x8XY5 - VX -= VY, VF = 0 if < 0, else VF = 1
-    // TODO possible underflow
-    private void subBorrow() {
+    public void addCarry() {
         int X = (opcode & 0x0F00) >> 8;
         int Y = (opcode & 0x00F0) >> 4;
-        // if V[Y] > V[X], set borrow
+        int result = V[X] + V[Y];
+        // if V[X] += V[Y] > 255, set carry
+        if (result > 255) {
+            V[0xF] = 1;
+            V[X] = (result - 256) & 0xFF;
+        } else {
+            V[0xF] = 0;
+            V[X] = result & 0xFF;
+        }
+        pc += 2;
+    }
+    // 0x8XY5 - VX -= VY, VF = 0 if < 0, else VF = 1
+    public void subBorrow() {
+        int X = (opcode & 0x0F00) >> 8;
+        int Y = (opcode & 0x00F0) >> 4;
+        // if V[Y] > V[X], set !borrow
         if (V[Y] > V[X]) {
+            // wrap around instead of below 0
+            V[X] = (256 + (V[X] - V[Y])) & 0xFF;
             V[0xF] = 0;
         } else {
+            V[X] = (V[X] - V[Y]) & 0xFF;
             V[0xF] = 1;
         }
-        // again mask with lower byte
-        V[X] -= V[Y] & 0xFF;
+       // V[X] -= V[Y];
         pc += 2;
     }
     
     // 0x8XY6 - VF = LSB VX, VX >> 1
-    private void shiftRight() {
+    public void shiftRight() {
         int X = (opcode & 0x0F00) >> 8;
         V[0xF] = V[X] & 0x01;
         V[X] >>= 1;
@@ -403,7 +399,7 @@ public class CPU implements Runnable {
     }
     
     // 0x8XY7 - VX = VY - VX, VF = 0 if < 0, else VF = 1
-    private void setSubBorrow() {
+    public void setSubBorrow() {
         int X = (opcode & 0x0F00) >> 8;
         int Y = (opcode & 0x00F0) >> 4;
         if (V[X] > V[Y]) {
@@ -416,7 +412,7 @@ public class CPU implements Runnable {
     }
     
     // 0x8XYE - VF = MSB VX, VX << 1
-    private void shiftLeft() {
+    public void shiftLeft() {
         int X = (opcode & 0x0F00) >> 8;
         V[0xF] = V[X] & 0x80;
         V[X] <<= 1;
@@ -424,7 +420,7 @@ public class CPU implements Runnable {
     }
     
     // 0x9XY0 - skip ins. if VX != VY
-    private void skip() {
+    public void skip() {
         if (V[(opcode & 0x0F00) >> 8] != V[(opcode & 0x00F0) >> 4]) {
             pc += 4;
         } else {
@@ -433,19 +429,19 @@ public class CPU implements Runnable {
     }
       
     // 0xANNN - set index to address NNN
-    private void setIndex() {
+    public void setIndex() {
         index = (opcode & 0x0FFF);
         pc += 2;
         //System.out.println("Index: " + index);
     }
     
     // 0xBNNN - jump to NNN + V0
-    private void jumpV() {
+    public void jumpV() {
         pc = (opcode & 0x0FFF) + V[0x0];
     }
     
     // 0xCXNN - VX = rand & NN
-    private void RandAnd() {
+    public void RandAnd() {
         Random rand = new Random();
         int i = rand.nextInt(256);
         V[(opcode & 0x0F00) >> 8] = i & (opcode & 0x00FF); 
@@ -453,7 +449,7 @@ public class CPU implements Runnable {
     }
     
     // 0xDXYN - draw sprite at X,Y with N rows
-    private void drawSprite() {
+    public void drawSprite() {
         int x = V[(opcode & 0x0F00) >> 8];
         int y = V[(opcode & 0x00F0) >> 4];
         int height = opcode & 0x000F;
@@ -488,7 +484,8 @@ public class CPU implements Runnable {
     }
     
     // 0xEX9E - skip ins. if key in VX is pressed
-    private void skipKeyPressed() {
+    public void skipKeyPressed() {
+        System.out.println("TEST: " + V[(opcode & 0x0F00) >> 8]);
         //System.out.println("TEST: " + key[V[(opcode & 0x0F00) >> 8]]);
         if (key[V[(opcode & 0x0F00) >> 8]] == 1) {
             pc += 4;
@@ -498,7 +495,7 @@ public class CPU implements Runnable {
     }
     
     // 0xEXA1 - skip ins. if key in VX is not pressed
-    private void skipKeyNotPressed() {
+    public void skipKeyNotPressed() {
         if (key[V[(opcode & 0x0F00) >> 8]] == 0) {
             pc += 4;
         } else {
@@ -507,19 +504,21 @@ public class CPU implements Runnable {
     }
     
     // 0xFX07 - VX = delay timer
-    private void setXDelay() {
+    public void setXDelay() {
         V[(opcode & 0x0F00) >> 8] = delayTimer;
         pc += 2;
     }
     
     // 0xFX0A - Check for key press, store in VX
-    private void keyWait() {
-        int X = (opcode & 0x0F00);
+    public void keyWait() {
+        int X = (opcode & 0x0F00) >> 8;
         boolean keyPressed = false;
            
         for (int i = 0; i < 16; i++) {
             if (key[i] == 1) {
                 //V[X] = key[i];
+                System.out.println("KEYWAIT1: " + V[X]);
+                System.out.println("KEYWAIT2: " + i);
                 V[X] = i;
                 System.out.println("KEY1: " + key[i]);
                 System.out.println("KEY2: " + V[X]);
@@ -533,40 +532,33 @@ public class CPU implements Runnable {
     }
     
     // 0xFX15 - delay timer = VX
-    private void setDelayX() {
+    public void setDelayX() {
         delayTimer = (((opcode & 0x0F00) >> 8) & 0x00FF);
         pc += 2;
     }
     
     // 0xFX18 - sound timer = VX
-    private void setSoundX() {
+    public void setSoundX() {
         soundTimer = (((opcode & 0x0F00) >> 8) & 0x00FF);
         pc += 2;
     }
     
     // 0xFX1E - index += VX
-    private void addToIndex() {
+    public void addToIndex() {
         int X = (opcode & 0x0F00) >> 8;
-        // V[F] set to 1 if I+VX overflows
-        if (index + V[X] > 0xFFF) {
-            V[0xF] = 1;
-        } else {
-            V[0xF] = 0;
-        }
-        index += V[(opcode & 0x0F00) >> 8];
-        //System.out.println("Index: " + index);
+        index = index + V[X];
         pc += 2;
     }
     
     // 0xFX29 - index = sprite loc. for char in VX
-    private void setSpriteIndex() {
+    public void setSpriteIndex() {
         index = V[(opcode & 0x0F00) >> 8] * 5;
         System.out.println("SPRITE INDEX: " + index);
         pc += 2;
     }
     
     // 0xFX33 - store BCD of VX in M[i]->M[i+2]
-    private void storeBCD() {
+    public void storeBCD() {
         int X = (opcode & 0x0F00) >> 8;
         System.out.println("TEST: " + V[X]);
         memory[index] = V[X] / 100;
@@ -579,7 +571,7 @@ public class CPU implements Runnable {
     }
     
     // 0xFX55 - store V0 -> VX in memory from point index
-    private void memStore() {
+    public void memStore() {
         int X = (opcode & 0x0F00) >> 8;
         for (int i = 0; i <= X; i++) {
             memory[index + i] = V[i];
@@ -589,7 +581,7 @@ public class CPU implements Runnable {
     }
     
     // 0xFX65 - fill V0 -> VX with values from memory point index
-    private void memFill() {
+    public void memFill() {
         int X = (opcode & 0x0F00) >> 8;
         //System.out.println("X: " + X);
         //System.out.println("Index: " + index);
@@ -600,7 +592,7 @@ public class CPU implements Runnable {
         pc += 2;
     }
     
-    private void updateTimers() {
+    public void updateTimers() {
         if (delayTimer > 0) {
             delayTimer--;
         }
@@ -641,4 +633,57 @@ public class CPU implements Runnable {
         key[index] = val;
     }
     
+    public void debug() {
+        System.out.println(Integer.toHexString(opcode));
+        System.out.println("I: " + index);
+        System.out.println("PC: " + pc);
+        for (int i = 0; i < 16; i++) {
+            System.out.println("V[" + Integer.toHexString(i) + "]: " + V[i]);
+        }
+        System.out.println();
+        for (int i = 0; i < 16; i++) {
+            System.out.println("S[" + Integer.toHexString(i) + "]: " + stack[i]);
+        }
+        System.out.printf("%n%n%n");
+    }
+    
+    
+    // test getters / setters
+    
+       
+    public void setGfx(int x, int y) {
+        gfx[x][y] ^= 1;
+    }
+    
+    public void setStack(int stackp, int val) {
+        stack[stackp] = val;
+    }
+    
+    public int getSp() {
+        return sp;
+    }
+    
+    public void setSp(int val) {
+        sp = val;
+    }
+    
+    public int getPc() {
+        return pc;
+    }
+    
+    public void setPc(int val) {
+        pc = val;
+    }
+    
+    public void setV(int i, int val) {
+        V[i] = val;
+    }
+    
+    public int getV(int i) {
+        return V[i];
+    }
+    
+    public void setOpcode(int val) {
+        opcode = val;
+    }
 }
