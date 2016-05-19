@@ -4,6 +4,8 @@ import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -20,6 +22,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 
+import java.util.concurrent.TimeUnit;
+
 public class DisplayController implements Initializable {
     @FXML
     private BorderPane borderPane;
@@ -29,11 +33,9 @@ public class DisplayController implements Initializable {
     private Canvas canvas;
     
     private GraphicsContext gc;
-    private PixelWriter pw;
     private CPU chip8CPU;
-    private ExecutorService executor = Executors.newFixedThreadPool(2); 
+    private ScheduledExecutorService executor = Executors.newScheduledThreadPool(2); 
     private int modifier = 7;  
-    private boolean running = false;
     
     @FXML
     private void handleRestartAction(ActionEvent ae) {
@@ -155,54 +157,35 @@ public class DisplayController implements Initializable {
         }
     }
     
-    public void initialize(URL location, ResourceBundle resources) {
-        
+    public void initialize(URL location, ResourceBundle resources) {        
         canvas.setFocusTraversable(true);
         borderPane.setStyle("-fx-background-color: black");
         borderPane.setCenter(canvas);
         gc = canvas.getGraphicsContext2D();
-        gc.setLineWidth(1.0);
-        pw = canvas.getGraphicsContext2D().getPixelWriter();
 
         chip8CPU = new CPU();         
         chip8CPU.init();
-        chip8CPU.loadROM("roms/BRIX");
+        chip8CPU.loadROM("roms/UFO");
+
+        // 333 operations/s
+        ScheduledFuture<?> cpuThread = executor.scheduleWithFixedDelay(() -> {
+            chip8CPU.cycle();
+            chip8CPU.debug();
+        }, 3, 3, TimeUnit.MILLISECONDS);
         
-        //chip8CPU.startThread();
-                 
-        running = true;
-        
-        executor.execute(() -> {
-            while (running) {
-                chip8CPU.cycle();
-                chip8CPU.debug();
-                try {
-                    Thread.sleep(4);
-                } catch (Exception e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-            }
-        });
-        
-        executor.execute(() -> {
-            while(running) {
+        // ~60Hz
+        ScheduledFuture<?> displayThread = executor.scheduleWithFixedDelay(() -> {
+           // while(running) {
                 if (chip8CPU.isDrawFlag()) {
-                    updateDisplay();              
                     chip8CPU.setDrawFlag(false);
+                    chip8CPU.updateTimers();
+                    updateDisplay();   
                 }
-                try {
-                   Thread.sleep(16);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+           // }
+        }, 17, 17, TimeUnit.MILLISECONDS);
     }
     
     public void updateDisplay() {
-        //System.out.println("UPDATE");
-        
         int[][]gfx = chip8CPU.getGfx();
         
         for (int y = 0; y < 32; y++) {
@@ -213,12 +196,12 @@ public class DisplayController implements Initializable {
                     gc.setFill(Color.BLACK);
                 }
                 gc.fillRect(x*modifier, y*modifier, modifier, modifier);
+                
             }
         }
     }
     
     public void stop() {
-        running = false;
         executor.shutdown();
     }
 }

@@ -83,7 +83,7 @@ public class CPUTest {
     }
 
     @Test
-    public void testSet() {
+    public void testSetAddress() {
         fail("Not yet implemented"); // TODO
     }
 
@@ -93,7 +93,7 @@ public class CPUTest {
     }
 
     @Test
-    public void testSetVal() {
+    public void testSetV() {
         fail("Not yet implemented"); // TODO
     }
 
@@ -101,12 +101,13 @@ public class CPUTest {
     public void testOr() {
         fail("Not yet implemented"); // TODO
     }
-
+*/
     @Test
     public void testAnd() {
-        fail("Not yet implemented"); // TODO
+        target.setOpcode(0x8c02);
+        target.setV(0, 63);
     }
-
+/*
     @Test
     public void testXor() {
         fail("Not yet implemented"); // TODO

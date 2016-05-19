@@ -5,7 +5,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Random;
 
-public class CPU implements Runnable {
+public class CPU {
     // unsigned   
     private int opcode; // 2 bytes
     private int[] memory = new int[4096];
@@ -30,11 +30,6 @@ public class CPU implements Runnable {
     private int sp;
     // hex input keypad
     private int[] key = new int[16];
-    
-    private long timeBegin = Long.MIN_VALUE;
-    private long timeEnd = Long.MAX_VALUE;
-        
-    
 
     private int fontSet[] = new int[] {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -56,22 +51,6 @@ public class CPU implements Runnable {
     };
     
     private boolean drawFlag = false;
-    
-    private Thread CPUThread;
-    
-    private boolean running = false;
-    
-    
-    public CPU() {
-    }
-    
-    public void startThread() {
-        if (CPUThread == null) {
-            running = true;
-            CPUThread = new Thread(this);
-            CPUThread.start();
-        }
-    }
 
     public void init() {
         // clear memory
@@ -99,29 +78,14 @@ public class CPU implements Runnable {
         
         // refresh screen
         drawFlag = true;
-
-    }
-    
-    public void run() {
-        while (running) {
-            cycle();
-        }
     }
     
     public void cycle() {
         opcode = fetch(pc);
         decode(opcode);
-        timeBegin = System.nanoTime();
-        // update timers every 16ms ~60Hz
-        if ((timeEnd - timeBegin) > (16 / 1e3)) {
-            updateTimers();
-        }
-        timeEnd = System.nanoTime();
     }
     
     private int fetch(int pc) {
-        //System.out.println("Opcode upper: " + Integer.toHexString(memory[pc] & 0xFF));
-        //System.out.println("Opcode lower: " + Integer.toHexString(memory[pc+1] & 0xFF));
         // combine memory bytes pc and pc+1 to form 2 byte opcode
         int opcode = (memory[pc] & 0xFF) << 8 | (memory[pc+1] & 0xFF);
         return opcode;
@@ -156,7 +120,7 @@ public class CPU implements Runnable {
             skipIfEqualV();
             break;
         case 0x6000: // 0x6XNN
-            set();
+            setAddress();
             break;
         case 0x7000: // 0x7XNN
             add();
@@ -164,13 +128,13 @@ public class CPU implements Runnable {
         case 0x8000:
             switch (opcode & 0x000F) {
             case 0x0000: // 0x8XY0
-                setVal();
+                setV();
                 break;
             case 0x0001: // 0x8XY1
-                and();
+                or();
                 break;
             case 0x0002: // 0x8XY2
-                or();
+                and();
                 break;
             case 0x0003: // 0x8XY3
                 xor();
@@ -252,9 +216,7 @@ public class CPU implements Runnable {
             System.out.println("Unknown opcode: " + opcode);
         }
     }
-    
-    // opcode execution
-    
+        
     // 0x00E0 - clear screen
     public void clear() {
         for (int xLine = 0; xLine < 64; xLine++) {
@@ -270,13 +232,13 @@ public class CPU implements Runnable {
         sp--;
         pc = stack[sp];
         pc += 2;
+        drawFlag = true;
     }
     
     // 0x1NNN - jump to address NNN
     public void jump() {
         pc = opcode & 0x0FFF;
         //System.out.println("New PC: " + pc);
-        drawFlag = true;
     }
     
     // 0x2NNN - call subroutine at address NNN
@@ -314,7 +276,7 @@ public class CPU implements Runnable {
     }
     
     // 0x6XNN - set VX to NN
-    public void set() {
+    public void setAddress() {
         V[(opcode & 0x0F00) >> 8] = (opcode & 0x00FF);
         //System.out.println("Set");
         pc += 2;
@@ -335,7 +297,7 @@ public class CPU implements Runnable {
     }
     
     // 0x8XY0 - set VX to VY
-    public void setVal() {
+    public void setV() {
         V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4];
         pc += 2;
     }
@@ -479,7 +441,7 @@ public class CPU implements Runnable {
             }
             
         }       
-        //drawFlag = true;
+        drawFlag = true;
         pc += 2;
     }
     
@@ -555,6 +517,7 @@ public class CPU implements Runnable {
         index = V[(opcode & 0x0F00) >> 8] * 5;
         System.out.println("SPRITE INDEX: " + index);
         pc += 2;
+        drawFlag = true;
     }
     
     // 0xFX33 - store BCD of VX in M[i]->M[i+2]
@@ -637,13 +600,13 @@ public class CPU implements Runnable {
         System.out.println(Integer.toHexString(opcode));
         System.out.println("I: " + index);
         System.out.println("PC: " + pc);
+        System.out.println("Delay: " + delayTimer);
+        System.out.println("Sound: " + soundTimer);
+        System.out.println("Draw: " + drawFlag);
         for (int i = 0; i < 16; i++) {
             System.out.println("V[" + Integer.toHexString(i) + "]: " + V[i]);
         }
-        System.out.println();
-        for (int i = 0; i < 16; i++) {
-            System.out.println("S[" + Integer.toHexString(i) + "]: " + stack[i]);
-        }
+
         System.out.printf("%n%n%n");
     }
     
