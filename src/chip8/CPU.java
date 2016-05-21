@@ -225,6 +225,7 @@ public class CPU {
             }
         }
         pc += 2;
+        drawFlag = true;
     }
     
     // 0x00EE - return from subroutine
@@ -238,7 +239,6 @@ public class CPU {
     // 0x1NNN - jump to address NNN
     public void jump() {
         pc = opcode & 0x0FFF;
-        //System.out.println("New PC: " + pc);
     }
     
     // 0x2NNN - call subroutine at address NNN
@@ -268,7 +268,7 @@ public class CPU {
     
     // 0x5XY0 - skip ins. if VX == VY
     public void skipIfEqualV() {
-        if (V[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF)) {
+        if (V[(opcode & 0x0F00) >> 8] == V[(opcode & 0x00F0) >> 4]) {
             pc += 4;
         } else {
             pc += 2;
@@ -287,11 +287,11 @@ public class CPU {
         int X = (opcode & 0x0F00) >> 8;
         int NN = (opcode & 0x00FF);
         int result = V[X] + NN;
-        // resolve overflow (V regs are only 8bit)
+        // resolve overflow
         if (result >= 256) {
             V[X] = result - 256;
         } else {
-            V[X] += NN;
+            V[X] = result;
         }
         pc += 2;
     }
@@ -364,12 +364,14 @@ public class CPU {
     public void setSubBorrow() {
         int X = (opcode & 0x0F00) >> 8;
         int Y = (opcode & 0x00F0) >> 4;
+        int result = V[Y] - V[X];
         if (V[X] > V[Y]) {
             V[0xF] = 0;
+            V[X] = 256 + result;
         } else {
             V[0xF] = 1;
+            V[X] = result;
         }
-        V[X] = V[Y] - V[X];
         pc += 2;
     }
     
@@ -399,7 +401,7 @@ public class CPU {
     
     // 0xBNNN - jump to NNN + V0
     public void jumpV() {
-        pc = (opcode & 0x0FFF) + V[0x0];
+        pc = (opcode & 0x0FFF) + V[0];
     }
     
     // 0xCXNN - VX = rand & NN
@@ -420,7 +422,7 @@ public class CPU {
             int pixel = memory[index + yLine];
 
             for (int xLine = 0; xLine < 8; xLine++) {
-                // check each bit (pixel) in the 1 byte row
+                // check each bit (pixel) in the 8 bit row
                 if ((pixel & (0x80 >> xLine)) != 0) {
 
                     // wrap pixels if they're drawn off screen
@@ -447,8 +449,6 @@ public class CPU {
     
     // 0xEX9E - skip ins. if key in VX is pressed
     public void skipKeyPressed() {
-        System.out.println("TEST: " + V[(opcode & 0x0F00) >> 8]);
-        //System.out.println("TEST: " + key[V[(opcode & 0x0F00) >> 8]]);
         if (key[V[(opcode & 0x0F00) >> 8]] == 1) {
             pc += 4;
         } else {
@@ -478,12 +478,7 @@ public class CPU {
            
         for (int i = 0; i < 16; i++) {
             if (key[i] == 1) {
-                //V[X] = key[i];
-                System.out.println("KEYWAIT1: " + V[X]);
-                System.out.println("KEYWAIT2: " + i);
                 V[X] = i;
-                System.out.println("KEY1: " + key[i]);
-                System.out.println("KEY2: " + V[X]);
                 keyPressed = true;
             }
         }
@@ -495,27 +490,25 @@ public class CPU {
     
     // 0xFX15 - delay timer = VX
     public void setDelayX() {
-        delayTimer = (((opcode & 0x0F00) >> 8) & 0x00FF);
+        delayTimer = V[(opcode & 0x0F00) >> 8];
         pc += 2;
     }
     
     // 0xFX18 - sound timer = VX
     public void setSoundX() {
-        soundTimer = (((opcode & 0x0F00) >> 8) & 0x00FF);
+        soundTimer = V[(opcode & 0x0F00) >> 8];
         pc += 2;
     }
     
     // 0xFX1E - index += VX
     public void addToIndex() {
-        int X = (opcode & 0x0F00) >> 8;
-        index = index + V[X];
+        index += V[(opcode & 0x0F00) >> 8];
         pc += 2;
     }
     
     // 0xFX29 - index = sprite loc. for char in VX
     public void setSpriteIndex() {
         index = V[(opcode & 0x0F00) >> 8] * 5;
-        System.out.println("SPRITE INDEX: " + index);
         pc += 2;
         drawFlag = true;
     }
@@ -523,13 +516,9 @@ public class CPU {
     // 0xFX33 - store BCD of VX in M[i]->M[i+2]
     public void storeBCD() {
         int X = (opcode & 0x0F00) >> 8;
-        System.out.println("TEST: " + V[X]);
         memory[index] = V[X] / 100;
         memory[index+1] = (V[X] % 100) / 10;
         memory[index+2] = (V[X] % 100) % 10;
-        System.out.println(memory[index]);
-        System.out.println(memory[index+1]);
-        System.out.println(memory[index+2]);
         pc += 2;
     }
     
@@ -549,7 +538,7 @@ public class CPU {
         //System.out.println("X: " + X);
         //System.out.println("Index: " + index);
         for (int i = 0; i <= X; i++) {
-            V[i] = memory[index + i];
+            V[i] = (memory[index + i]) & 0xFF;
         }
         //index += X + 1;
         pc += 2;
@@ -597,56 +586,81 @@ public class CPU {
     }
     
     public void debug() {
-        System.out.println(Integer.toHexString(opcode));
-        System.out.println("I: " + index);
-        System.out.println("PC: " + pc);
+        System.out.println("Opcode: " + Integer.toHexString(opcode));
+        System.out.println("I: " + Integer.toHexString(index));
+        System.out.println("PC: " + Integer.toHexString(pc));
         System.out.println("Delay: " + delayTimer);
         System.out.println("Sound: " + soundTimer);
         System.out.println("Draw: " + drawFlag);
         for (int i = 0; i < 16; i++) {
-            System.out.println("V[" + Integer.toHexString(i) + "]: " + V[i]);
+            System.out.println("V[" + Integer.toHexString(i) + "]: " + Integer.toHexString(V[i]));
         }
-
         System.out.printf("%n%n%n");
     }
-    
-    
-    // test getters / setters
-    
-       
-    public void setGfx(int x, int y) {
+      
+    // package private getters / setters for junit
+          
+    void setGfx(int x, int y) {
         gfx[x][y] ^= 1;
     }
     
-    public void setStack(int stackp, int val) {
+    int getStack(int stackp) {
+        return stack[stackp];
+    }
+    
+    void setStack(int stackp, int val) {
         stack[stackp] = val;
     }
     
-    public int getSp() {
+    int getSp() {
         return sp;
     }
     
-    public void setSp(int val) {
+    void setSp(int val) {
         sp = val;
     }
     
-    public int getPc() {
+    int getPc() {
         return pc;
     }
     
-    public void setPc(int val) {
+    void setPc(int val) {
         pc = val;
     }
     
-    public void setV(int i, int val) {
-        V[i] = val;
-    }
-    
-    public int getV(int i) {
+    int getV(int i) {
         return V[i];
     }
     
-    public void setOpcode(int val) {
+    void setV(int i, int val) {
+        V[i] = val;
+    }
+    
+    void setOpcode(int val) {
         opcode = val;
+    }
+    
+    int getIndex() {
+        return index;
+    }
+    
+    int getDelayTimer() {
+        return delayTimer;
+    }
+    
+    void setDelayTimer(int val) {
+        delayTimer = val;
+    }
+    
+    int getSoundTimer() {
+        return soundTimer;
+    }
+    
+    int getMemoryVal(int index) {
+        return memory[index];
+    }
+    
+    void setMemoryVal(int index, int val) {
+        memory[index] = val;
     }
 }

@@ -15,6 +15,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.MenuBar;
+import javafx.scene.image.Image;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -35,7 +36,10 @@ public class DisplayController implements Initializable {
     private GraphicsContext gc;
     private CPU chip8CPU;
     private ScheduledExecutorService executor = Executors.newScheduledThreadPool(2); 
-    private int modifier = 7;  
+    private double modifier = 8;  
+    
+    private Image white = new Image("file:pixel-1x1-white.png");
+    private Image black = new Image("file:pixel-1x1-black.png");
     
     @FXML
     private void handleRestartAction(ActionEvent ae) {
@@ -104,7 +108,7 @@ public class DisplayController implements Initializable {
     
     @FXML
     private void handleKeyReleased(KeyEvent ke) {
-        
+        System.out.println("Released: " + ke.getCode().toString());
         switch (ke.getCode().toString()) {
         case "DIGIT1":
             chip8CPU.setKey(1, 0);
@@ -166,7 +170,7 @@ public class DisplayController implements Initializable {
         chip8CPU = new CPU();         
         chip8CPU.init();
         chip8CPU.loadROM("roms/UFO");
-
+        
         // 333 operations/s
         ScheduledFuture<?> cpuThread = executor.scheduleWithFixedDelay(() -> {
             chip8CPU.cycle();
@@ -175,27 +179,31 @@ public class DisplayController implements Initializable {
         
         // ~60Hz
         ScheduledFuture<?> displayThread = executor.scheduleWithFixedDelay(() -> {
-           // while(running) {
-                if (chip8CPU.isDrawFlag()) {
-                    chip8CPU.setDrawFlag(false);
-                    chip8CPU.updateTimers();
-                    updateDisplay();   
-                }
-           // }
+            chip8CPU.updateTimers();
+            if (chip8CPU.isDrawFlag()) {
+                chip8CPU.setDrawFlag(false);
+                //chip8CPU.updateTimers();
+                updateDisplay();   
+            }
         }, 17, 17, TimeUnit.MILLISECONDS);
     }
     
     public void updateDisplay() {
         int[][]gfx = chip8CPU.getGfx();
-        
+        //Image img = white;
+        //System.out.println(img.getHeight());
         for (int y = 0; y < 32; y++) {
             for (int x = 0; x < 64; x++) {
                 if (gfx[x][y] == 1) {
                     gc.setFill(Color.WHITE);
+                    //img = white;
                 } else {
                     gc.setFill(Color.BLACK);
+                    //img = black;
                 }
                 gc.fillRect(x*modifier, y*modifier, modifier, modifier);
+                //gc.drawImage(img, x, y, 22, 22);
+                //gc.drawImage(img, x, y);
                 
             }
         }
