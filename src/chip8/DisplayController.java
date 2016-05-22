@@ -210,10 +210,12 @@ public class DisplayController {
     }
     
     public void restartCPU() {
-        stopThreads();
-        chip8CPU = new CPU();
-        chip8CPU.init();
-        chip8CPU.loadROM(filePath);
-        startThreads();
+        if (filePath != null) {
+            stopThreads();
+            chip8CPU = new CPU();
+            chip8CPU.init();
+            chip8CPU.loadROM(filePath);
+            startThreads();
+        }
     }
 }
