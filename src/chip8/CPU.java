@@ -348,7 +348,6 @@ public class CPU {
             V[X] = (V[X] - V[Y]) & 0xFF;
             V[0xF] = 1;
         }
-       // V[X] -= V[Y];
         pc += 2;
     }
     
@@ -396,7 +395,6 @@ public class CPU {
     public void setIndex() {
         index = (opcode & 0x0FFF);
         pc += 2;
-        //System.out.println("Index: " + index);
     }
     
     // 0xBNNN - jump to NNN + V0
@@ -428,20 +426,15 @@ public class CPU {
                     // wrap pixels if they're drawn off screen
                     int xCoord = (x+xLine) % 64;
                     int yCoord = (y+yLine) % 32;
-                    //int xCoord = x+xLine;
-                    //int yCoord = y+yLine;
 
                     // if pixel already exists, set carry (collision)
-                    //if (xCoord < 64 && yCoord < 32) {
-                        if (gfx[xCoord][yCoord] == 1) {
-                            V[0xF] = 1;
-                        }
-                        // draw via xor
-                        gfx[xCoord][yCoord] ^= 1;
-                    //}
+                    if (gfx[xCoord][yCoord] == 1) {
+                        V[0xF] = 1;
+                    }
+                    // draw via xor
+                    gfx[xCoord][yCoord] ^= 1;
                 }
             }
-            
         }       
         drawFlag = true;
         pc += 2;

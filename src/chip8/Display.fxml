@@ -7,19 +7,15 @@
 
 <BorderPane fx:id="borderPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="chip8.DisplayController">
    <center>
-      <Canvas id="canvas" fx:id="canvas" height="256.0" onKeyPressed="#handleKeyPressed" onKeyReleased="#handleKeyReleased" width="512.0" BorderPane.alignment="CENTER" />
+      <Canvas fx:id="canvas" height="256.0" onKeyPressed="#handleKeyPressed" onKeyReleased="#handleKeyReleased" width="512.0" BorderPane.alignment="CENTER" />
    </center>
    <top>
-      <MenuBar fx:id="menuBar" BorderPane.alignment="CENTER">
+      <MenuBar BorderPane.alignment="CENTER">
         <menus>
           <Menu mnemonicParsing="false" text="File">
             <items>
-              <MenuItem mnemonicParsing="false" onAction="#handleRestartAction" text="Restart" />
-            </items>
-          </Menu>
-          <Menu mnemonicParsing="false" text="Help">
-            <items>
-              <MenuItem mnemonicParsing="false" onAction="#handleAboutAction" text="About" />
+              <MenuItem mnemonicParsing="false" onAction="#handleLoad" text="Load ROM" />
+                  <MenuItem mnemonicParsing="false" onAction="#handleRestartAction" text="Restart" />
             </items>
           </Menu>
         </menus>

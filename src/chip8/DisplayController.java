@@ -1,55 +1,51 @@
 package chip8;
 
-import java.net.URL;
-import java.util.ResourceBundle;
-import java.util.concurrent.ExecutorService;
+import java.io.File;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.MenuBar;
-import javafx.scene.image.Image;
-import javafx.scene.image.PixelWriter;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 
 import java.util.concurrent.TimeUnit;
 
-public class DisplayController implements Initializable {
+public class DisplayController {
     @FXML
     private BorderPane borderPane;
     @FXML
-    private MenuBar menuBar;
-    @FXML
     private Canvas canvas;
-    
+    private Stage stage;
     private GraphicsContext gc;
+    private double pixelSize = 8;  
     private CPU chip8CPU;
-    private ScheduledExecutorService executor = Executors.newScheduledThreadPool(2); 
-    private double modifier = 8;  
-    
-    private Image white = new Image("file:pixel-1x1-white.png");
-    private Image black = new Image("file:pixel-1x1-black.png");
-    
+    private FileChooser fileChooser = new FileChooser();
+    private String filePath;
+    private ScheduledExecutorService threadPool = Executors.newScheduledThreadPool(2); 
+    private ScheduledFuture<?> cpuThread;
+    private ScheduledFuture<?> displayThread;
+ 
     @FXML
-    private void handleRestartAction(ActionEvent ae) {
-        System.out.println("Clicked restart");
+    private void handleLoad() {
+        File file = fileChooser.showOpenDialog(stage);
+        if (file != null) {
+            filePath = file.toString();
+            restartCPU();
+        }
     }
     
     @FXML
-    private void handleAboutAction(ActionEvent ae) {
-        System.out.println("Clicked about");
-    }   
+    private void handleRestartAction(ActionEvent ae) {
+        restartCPU();
+    } 
     
     @FXML
     private void handleKeyPressed(KeyEvent ke) {
@@ -161,55 +157,63 @@ public class DisplayController implements Initializable {
         }
     }
     
-    public void initialize(URL location, ResourceBundle resources) {        
+    public void init() {
+        stage = (Stage) canvas.getScene().getWindow();
         canvas.setFocusTraversable(true);
         borderPane.setStyle("-fx-background-color: black");
         borderPane.setCenter(canvas);
         gc = canvas.getGraphicsContext2D();
-
-        chip8CPU = new CPU();         
-        chip8CPU.init();
-        chip8CPU.loadROM("roms/UFO");
-        
-        // 333 operations/s
-        ScheduledFuture<?> cpuThread = executor.scheduleWithFixedDelay(() -> {
-            chip8CPU.cycle();
-            chip8CPU.debug();
-        }, 3, 3, TimeUnit.MILLISECONDS);
-        
-        // ~60Hz
-        ScheduledFuture<?> displayThread = executor.scheduleWithFixedDelay(() -> {
-            chip8CPU.updateTimers();
-            if (chip8CPU.isDrawFlag()) {
-                chip8CPU.setDrawFlag(false);
-                //chip8CPU.updateTimers();
-                updateDisplay();   
-            }
-        }, 17, 17, TimeUnit.MILLISECONDS);
     }
     
     public void updateDisplay() {
         int[][]gfx = chip8CPU.getGfx();
-        //Image img = white;
-        //System.out.println(img.getHeight());
         for (int y = 0; y < 32; y++) {
             for (int x = 0; x < 64; x++) {
                 if (gfx[x][y] == 1) {
                     gc.setFill(Color.WHITE);
-                    //img = white;
                 } else {
                     gc.setFill(Color.BLACK);
-                    //img = black;
                 }
-                gc.fillRect(x*modifier, y*modifier, modifier, modifier);
-                //gc.drawImage(img, x, y, 22, 22);
-                //gc.drawImage(img, x, y);
-                
+                gc.fillRect(x*pixelSize, y*pixelSize, pixelSize, pixelSize);
             }
         }
     }
     
-    public void stop() {
-        executor.shutdown();
+    public void startThreads() {        
+        // 500 operations/s
+        cpuThread = threadPool.scheduleWithFixedDelay(() -> {
+            chip8CPU.cycle();
+            chip8CPU.debug();
+        }, 2, 2, TimeUnit.MILLISECONDS);
+        
+        // ~60Hz
+        displayThread = threadPool.scheduleWithFixedDelay(() -> {
+            chip8CPU.updateTimers();
+            if (chip8CPU.isDrawFlag()) {
+                Platform.runLater(() -> {
+                    updateDisplay();  
+                    chip8CPU.setDrawFlag(false);
+                });
+            }
+        }, 17, 17, TimeUnit.MILLISECONDS);
+    }
+    
+    public void stopThreads() {
+        if (cpuThread != null) {
+            cpuThread.cancel(true);
+            displayThread.cancel(true);
+        }
+    }
+    
+    public void stopPool() {
+        threadPool.shutdownNow();
+    }
+    
+    public void restartCPU() {
+        stopThreads();
+        chip8CPU = new CPU();
+        chip8CPU.init();
+        chip8CPU.loadROM(filePath);
+        startThreads();
     }
 }

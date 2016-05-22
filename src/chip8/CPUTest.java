@@ -7,11 +7,11 @@ import org.junit.Test;
 
 public class CPUTest {
     
-    private CPU target;
+    private CPU target = new CPU();
     
     @Before
     public void init() {
-        target = new CPU();
+        // clear all registers, memory etc
         target.init();
     }
     
@@ -56,6 +56,7 @@ public class CPUTest {
     @Test
     public void testJump() { // 1NNN
         target.setOpcode(0x2659);
+        
         target.jump();
         
         // pc = opcode & 0x0FFF = 0x659
@@ -388,8 +389,7 @@ public class CPUTest {
         target.setSpriteIndex();
         
         // index = V[2] * 5 = 20
-        assertEquals(target.getIndex(), 20);
-        
+        assertEquals(target.getIndex(), 20);       
     }
 
     @Test
