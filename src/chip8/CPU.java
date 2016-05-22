@@ -424,15 +424,19 @@ public class CPU {
                 if ((pixel & (0x80 >> xLine)) != 0) {
 
                     // wrap pixels if they're drawn off screen
-                    int xCoord = (x+xLine) % 64;
-                    int yCoord = (y+yLine) % 32;
-
-                    // if pixel already exists, set carry (collision)
-                    if (gfx[xCoord][yCoord] == 1) {
-                        V[0xF] = 1;
+                    //int xCoord = (x+xLine) % 64;
+                    //int yCoord = (y+yLine) % 32;
+                    int xCoord = x+xLine;
+                    int yCoord = y+yLine; 
+                    
+                    if (xCoord < 64 && yCoord < 32) {
+                        // if pixel already exists, set carry (collision)
+                        if (gfx[xCoord][yCoord] == 1) {
+                            V[0xF] = 1;
+                        }
+                        // draw via xor
+                        gfx[xCoord][yCoord] ^= 1;
                     }
-                    // draw via xor
-                    gfx[xCoord][yCoord] ^= 1;
                 }
             }
         }       
@@ -465,7 +469,7 @@ public class CPU {
     }
     
     // 0xFX0A - Check for key press, store in VX
-    public void keyWait() {
+    public void keyWait() {     
         int X = (opcode & 0x0F00) >> 8;
         boolean keyPressed = false;
            
@@ -473,6 +477,7 @@ public class CPU {
             if (key[i] == 1) {
                 V[X] = i;
                 keyPressed = true;
+                key[i] = 0;
             }
         }
         
