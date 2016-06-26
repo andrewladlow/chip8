@@ -1,6 +1,11 @@
 package chip8;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -32,6 +37,33 @@ public class DisplayController {
     private ScheduledExecutorService threadPool = Executors.newScheduledThreadPool(2); 
     private ScheduledFuture<?> cpuThread;
     private ScheduledFuture<?> displayThread;
+    private Map<String, Integer> keyMap = new HashMap<String, Integer>();
+    
+    public DisplayController() {
+        /* 
+         * initialise key input
+         * "1", "2", "3", "4"
+         * "Q", "W", "E", "R"
+         * "A", "S", "D", "F"
+         * "Z", "X", "C", "V" 
+        */
+        keyMap.put("1", 1);
+        keyMap.put("2", 2);
+        keyMap.put("3", 3);
+        keyMap.put("4", 12);
+        keyMap.put("q", 4);
+        keyMap.put("w", 5);
+        keyMap.put("e", 6);
+        keyMap.put("r", 13);
+        keyMap.put("a", 7);
+        keyMap.put("s", 8);
+        keyMap.put("d", 9);
+        keyMap.put("f", 14);
+        keyMap.put("z", 10);
+        keyMap.put("x", 0);
+        keyMap.put("c", 11);
+        keyMap.put("v", 15);
+    }
  
     @FXML
     private void handleLoad() {
@@ -49,112 +81,21 @@ public class DisplayController {
     
     @FXML
     private void handleKeyPressed(KeyEvent ke) {
-        System.out.println("Pressed: " + ke.getCode().toString());
-        switch (ke.getCode().toString()) {
-        case "DIGIT1":
-            chip8CPU.setKey(1, 1);
-            break;
-        case "DIGIT2":
-            chip8CPU.setKey(2, 1);        
-            break;
-        case "DIGIT3":
-            chip8CPU.setKey(3, 1);  
-            break;
-        case "DIGIT4":
-            chip8CPU.setKey(12, 1); 
-            break;
-        case "Q":
-            chip8CPU.setKey(4, 1);
-            break;
-        case "W":
-            chip8CPU.setKey(5, 1); 
-            break;
-        case "E":
-            chip8CPU.setKey(6, 1); 
-            break;
-        case "R":
-            chip8CPU.setKey(13, 1); 
-            break;
-        case "A":
-            chip8CPU.setKey(7, 1); 
-            break;
-        case "S":
-            chip8CPU.setKey(8, 1); 
-            break;
-        case "D":
-            chip8CPU.setKey(9, 1);  
-            break;
-        case "F":
-            chip8CPU.setKey(14, 1);
-            break;
-        case "Z":
-            chip8CPU.setKey(10, 1);  
-            break;
-        case "X":
-            chip8CPU.setKey(0, 1);  
-            break;
-        case "C":
-            chip8CPU.setKey(11, 1);
-            break;
-        case "V":
-            chip8CPU.setKey(15, 1); 
-            break;
+        System.out.println("Pressed: " + ke.getText());
+
+        if (keyMap.containsKey(ke.getText())) {
+            chip8CPU.setKey(keyMap.get(ke.getText()), 1);
         }
     }
     
     @FXML
     private void handleKeyReleased(KeyEvent ke) {
-        System.out.println("Released: " + ke.getCode().toString());
-        switch (ke.getCode().toString()) {
-        case "DIGIT1":
-            chip8CPU.setKey(1, 0);
-            break;
-        case "DIGIT2":
-            chip8CPU.setKey(2, 0);         
-            break;
-        case "DIGIT3":
-            chip8CPU.setKey(3, 0);  
-            break;
-        case "DIGIT4":
-            chip8CPU.setKey(12, 0); 
-            break;
-        case "Q":
-            chip8CPU.setKey(4, 0);
-            break;
-        case "W":
-            chip8CPU.setKey(5, 0); 
-            break;
-        case "E":
-            chip8CPU.setKey(6, 0); 
-            break;
-        case "R":
-            chip8CPU.setKey(13, 0); 
-            break;
-        case "A":
-            chip8CPU.setKey(7, 0); 
-            break;
-        case "S":
-            chip8CPU.setKey(8, 0); 
-            break;
-        case "D":
-            chip8CPU.setKey(9, 0);  
-            break;
-        case "F":
-            chip8CPU.setKey(14, 0);  
-            break;
-        case "Z":
-            chip8CPU.setKey(10, 0);  
-            break;
-        case "X":
-            chip8CPU.setKey(0, 0);  
-            break;
-        case "C":
-            chip8CPU.setKey(11, 0);
-            break;
-        case "V":
-            chip8CPU.setKey(15, 0); 
-            break;
+        System.out.println("Released: " + ke.getText());
+        
+        if (keyMap.containsKey(ke.getText())) {
+            chip8CPU.setKey(keyMap.get(ke.getText()), 0);
         }
+        
     }
     
     public void init() {
@@ -163,6 +104,8 @@ public class DisplayController {
         borderPane.setStyle("-fx-background-color: black");
         borderPane.setCenter(canvas);
         gc = canvas.getGraphicsContext2D();
+        chip8CPU = new CPU();
+        chip8CPU.init();
     }
     
     public void updateDisplay() {
@@ -183,7 +126,7 @@ public class DisplayController {
         // 500 operations/s
         cpuThread = threadPool.scheduleWithFixedDelay(() -> {
             chip8CPU.cycle();
-            chip8CPU.debug();
+            //chip8CPU.debug();
         }, 2, 2, TimeUnit.MILLISECONDS);
         
         // ~60Hz

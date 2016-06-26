@@ -3,6 +3,7 @@ package chip8;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Random;
 
 public class CPU {
@@ -30,7 +31,6 @@ public class CPU {
     private int sp;
     // hex input keypad
     private int[] key = new int[16];
-
     private int fontSet[] = new int[] {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -53,21 +53,15 @@ public class CPU {
     private boolean drawFlag = false;
 
     public void init() {
-        // clear memory
-        for (int i = 0; i < 4096; i++) {
-            memory[i] = 0;
-        }
-        // clear stack, keys, and registers
-        for (int i = 0; i < 16; i++) {
-            stack[i] = 0;
-            key[i] = 0;
-            V[i] = 0;
-        }
+        // clear all memory locations
+        Arrays.fill(memory, 0);
+        Arrays.fill(stack, 0);
+        Arrays.fill(key, 0);
+        Arrays.fill(V, 0);
         // load fonts
         for (int i = 0; i < 80; i++) {
             memory[i] = fontSet[i];
-        }
-        
+        }        
         // reset vars
         pc = 0x200;
         opcode = 0;

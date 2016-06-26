@@ -13,7 +13,7 @@ public class Display extends Application {
     private DisplayController controller;
     
     public void start(Stage stage) throws Exception {  
-        URL location = getClass().getResource("Display.fxml");
+        URL location = this.getClass().getResource("Display.fxml");
         fxmlLoader = new FXMLLoader();  
         fxmlLoader.setLocation(location);
         BorderPane pane = fxmlLoader.load(location.openStream());
