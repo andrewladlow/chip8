@@ -106,6 +106,8 @@ public class DisplayController {
         gc = canvas.getGraphicsContext2D();
         chip8CPU = new CPU();
         chip8CPU.init();
+        
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.dir")));
     }
     
     public void updateDisplay() {
