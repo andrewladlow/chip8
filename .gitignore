@@ -15,4 +15,5 @@ bin
 .settings
 .classpath
 .project
+.vscode
 *.txt
